@@ -146,3 +146,7 @@ Once the application is running, open your web browser and navigate to `http://l
 *   **AI Model**: Google Gemini (`@google/genai`)
 *   **Markdown Rendering**: `react-markdown`
 *   **Icons**: `lucide-react`
+
+## License
+
+This project currently does not provide an explicit open-source license in its repository. Users are advised to clarify the terms of use with the project maintainers before using, distributing, or modifying the software.
