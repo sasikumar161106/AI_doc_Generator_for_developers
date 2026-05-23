@@ -1,0 +1,6 @@
+{
+  "name": "DocSync",
+  "description": "AI agent that generates technical documentation from codebases directly integrated with GitHub PRs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
