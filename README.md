@@ -1,152 +1,193 @@
-# DocSync: AI-Powered Technical Documentation Generator
+# 🤖 DocSync: Autonomous AI-Powered Technical Documentation Agent
 
+DocSync is an autonomous AI agent that integrates seamlessly with GitHub to **automatically analyze code, generate comprehensive technical documentation, and inject it directly into developer workflows** — the moment a Pull Request is opened.
 
-</div>
+Built with a modern React frontend and a powerful Node.js/Express backend powered by Google's Gemini 2.5 Flash, DocSync eliminates the documentation bottleneck from your development cycle.
 
-DocSync is an AI agent designed to streamline the process of technical documentation generation for developers. It offers robust integration with GitHub, allowing users to analyze entire repositories, generate comprehensive `README.md`-style documentation, and automatically commit these updates back to their projects. Additionally, it provides a flexible playground for generating documentation for individual code snippets. Built as an AI Studio app, DocSync features a modern React frontend and a powerful Node.js backend powered by Google's Gemini API.
+---
 
-## Project Overview
+## ✨ Features
 
-DocSync aims to simplify developer workflows by automating the creation and maintenance of project documentation. By leveraging advanced AI models, it can understand code context, identify key components, and produce clear, structured Markdown documentation. This tool is particularly useful for:
+### 1. 🚀 Autonomous Pull Request Documentation
 
-*   **Quickly generating initial documentation** for new projects or modules.
-*   **Maintaining up-to-date documentation** by integrating with existing codebases.
-*   **Exploring code snippets** with instant AI-generated explanations and usage guidelines.
+The flagship feature — DocSync acts as an **automated technical writer** that wakes up every time code changes.
 
-## Features
+- **Webhook Listener** — Listens for GitHub webhooks. When a developer opens or updates a Pull Request, the agent triggers automatically.
+- **Intelligent Diff Analysis** — Fetches the raw code changes (diff) from the PR using the GitHub API.
+- **Gemini Processing** — Sends the diff to Google's Gemini 2.5 Flash with a structured prompt, analyzing files changed, new additions, potential concerns, and documentation impact.
+- **Automated PR Comments** — Posts a concise, bulleted Markdown summary directly on the Pull Request as a comment.
 
-*   **AI-Powered Documentation Generation:** Utilizes Google's Gemini API to generate high-quality, comprehensive Markdown documentation for code.
-*   **GitHub Repository Integration (Dashboard):**
-    *   Fetches and displays a list of your GitHub repositories.
-    *   Analyzes selected repositories (filtering out non-code files and limiting to key files for efficiency).
-    *   Generates a project-level `README.md` (saved as `DOCSYNC.md`) based on the repository's codebase.
-    *   Enables direct committing of generated documentation back to the specified GitHub repository.
-*   **Code Snippet Playground:**
-    *   Provides an interface to paste individual code snippets.
-    *   Allows specifying an optional filename and context for more accurate documentation.
-    *   Generates and displays Markdown documentation instantly.
-    *   Includes a copy-to-clipboard function for easy transfer.
-*   **Intuitive User Interface:** A responsive and modern React frontend with clear navigation (Dashboard, Test Playground, Setup & Integration).
-*   **Local Setup Guide:** Comprehensive, step-by-step instructions within the application for configuring GitHub Personal Access Tokens and other prerequisites.
+### 2. 📊 Webhook Activity Dashboard
 
-## Project Structure
+A real-time monitoring panel built into the UI.
 
-The project is structured into a React frontend and an Express.js backend, bundled and served using Vite.
+- **Live Stats Cards** — Total events, success rate, average processing duration, and total docs generated.
+- **Event Feed** — Chronological log of every webhook event with color-coded status indicators (✅ success, ❌ failed, 🔄 processing, 👁 ignored).
+- **Auto-Refresh** — Dashboard refreshes every 10 seconds with a live/paused toggle.
+- **Direct Links** — Click through to view the generated comment on GitHub.
+
+### 3. 📚 Documentation History
+
+Browse and review all past AI-generated documentation.
+
+- **Expandable Accordion** — Click any entry to reveal the full Markdown documentation inline.
+- **PR Metadata** — Shows repository, PR number, title, author, and timestamp for each entry.
+- **GitHub Links** — Jump directly to the comment on GitHub.
+
+### 4. 📁 Project-Level Documentation Generation
+
+Generate comprehensive overviews for entire repositories.
+
+- **Repository Dashboard** — View and select your GitHub repositories from a modern UI.
+- **Smart Filtering** — Automatically excludes `node_modules`, `dist`, lockfiles, images, and hidden files.
+- **README Compilation** — Generates a project-wide `DOCSYNC.md` documenting structure, components, and setup.
+- **One-Click Commit** — Push the generated file directly back to GitHub.
+
+### 5. 🧪 Code Snippet Playground
+
+A flexible testing ground for on-the-fly documentation.
+
+- **Instant Analysis** — Paste code snippets and get structured Markdown documentation instantly.
+- **Contextual Formatting** — Provide optional filename and context strings for tailored output.
+- **One-Click Copy** — Copy the raw Markdown to your clipboard.
+
+### 6. 🔒 Security & Reliability
+
+Production-grade protections built into the webhook pipeline.
+
+- **HMAC-SHA256 Signature Verification** — Validates the `X-Hub-Signature-256` header to ensure only GitHub can trigger your endpoint. Activated by setting `WEBHOOK_SECRET` in `.env`.
+- **Rate Limiting** — 30 requests per minute per IP to prevent abuse.
+- **Graceful Error Handling** — All failures are logged with context and duration for easy debugging.
+
+---
+
+## 🏗️ Project Structure
 
 ```
-AI_doc_Generator_for_developers/
-├── .env.local             # Environment variables for local development (e.g., API keys)
-├── index.html             # Main HTML entry point for the React application
-├── metadata.json          # Project metadata for AI Studio app definition
-├── package.json           # Defines project dependencies and scripts
-├── server.ts              # Backend entry point and API routes (Express.js)
+DocSync_AI-powered_Technical_Documentation_Generator/
+├── .env                   # Environment variables (API keys, secrets)
+├── index.html             # Main HTML entry point
+├── metadata.json          # Project metadata
+├── package.json           # Dependencies and scripts
+├── server.ts              # Backend: Express.js server + webhook system
 ├── tsconfig.json          # TypeScript configuration
-├── vite.config.ts         # Vite build tool configuration
-└── src/                   # Frontend source code (React)
-    ├── App.tsx            # Main React component, handles routing and layout
+├── vite.config.ts         # Vite build configuration
+└── src/                   # Frontend source (React)
+    ├── App.tsx            # Main app component, routing & sidebar navigation
     ├── index.css          # Tailwind CSS import
-    ├── main.tsx           # React application entry point
+    ├── main.tsx           # React entry point
     ├── types.ts           # TypeScript type definitions
-    └── components/        # Reusable React components
-        ├── Dashboard.tsx  # Component for GitHub repository analysis and doc generation
-        ├── Playground.tsx # Component for manual code snippet documentation
-        └── Settings.tsx   # Component providing setup and integration instructions
+    └── components/
+        ├── Dashboard.tsx        # GitHub repo analysis & doc generation
+        ├── Playground.tsx       # Manual code snippet documentation
+        ├── Settings.tsx         # Setup & integration guide
+        ├── WebhookDashboard.tsx # Live webhook activity monitoring
+        └── DocHistory.tsx       # Past documentation browser
 ```
 
-### Key Components
+### Backend Architecture (`server.ts`)
 
-*   **`server.ts`**: The heart of the backend, implemented with Express.js and TypeScript. It handles:
-    *   **Environment Variable Loading**: Uses `dotenv` for `GEMINI_API_KEY` and `GITHUB_TOKEN`.
-    *   **Google GenAI Client**: Initializes the AI client with the provided API key.
-    *   **API Endpoints**:
-        *   `POST /api/docs/generate`: Accepts `code`, `filename`, `context` and returns AI-generated Markdown documentation.
-        *   `GET /api/github/user`: Fetches the authenticated GitHub user's details.
-        *   `GET /api/github/repos`: Retrieves a list of the authenticated user's repositories.
-        *   `POST /api/docs/generate-repo`: Orchestrates fetching repository files (filtering certain types/paths), compiling them, and sending them to the AI for a comprehensive `README.md` generation.
-        *   `POST /api/github/commit`: Facilitates committing a new file (`DOCSYNC.md`) or updating an existing one in a GitHub repository.
-    *   **Vite Integration**: Serves the React frontend in development and production modes.
-*   **`src/App.tsx`**: The main application component responsible for the overall layout, navigation sidebar, and rendering different views (Dashboard, Playground, Settings). It also fetches and displays basic GitHub user information.
-*   **`src/components/Dashboard.tsx`**: Manages the interaction with GitHub repositories. It allows users to select a repository, initiate documentation generation, preview the results, and push the generated `DOCSYNC.md` file back to GitHub. It includes robust error handling, especially for missing GitHub tokens.
-*   **`src/components/Playground.tsx`**: Provides a standalone interface for developers to paste arbitrary code snippets and immediately receive AI-generated documentation, offering a quick way to test the AI's capabilities.
-*   **`src/components/Settings.tsx`**: Offers a detailed guide on how to set up the necessary environment variables, particularly focusing on obtaining and configuring the GitHub Personal Access Token. This ensures a smooth onboarding experience for local development.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/docs/generate` | POST | Generate docs for a code snippet |
+| `/api/docs/generate-repo` | POST | Generate project-level documentation |
+| `/api/github/user` | GET | Fetch authenticated GitHub user info |
+| `/api/github/repos` | GET | List user's GitHub repositories |
+| `/api/github/commit` | POST | Commit generated docs to a repository |
+| `/api/github/webhook` | POST | **GitHub webhook receiver** (autonomous trigger) |
+| `/api/github/webhook/health` | GET | Webhook health check & config status |
+| `/api/webhook/activity` | GET | Get webhook event activity log |
+| `/api/webhook/history` | GET | Get documentation generation history |
+| `/api/webhook/stats` | GET | Get aggregated webhook statistics |
 
-## Setup and Usage
+---
 
-Follow these steps to set up and run DocSync locally.
+## 🚀 Setup & Usage
 
 ### Prerequisites
 
-*   **Node.js**: Ensure Node.js (v18 or higher recommended) is installed.
-*   **Git**: Required for cloning the repository.
-*   **Google Gemini API Key**: Obtain a `GEMINI_API_KEY` from [Google AI Studio](https://ai.google.dev/).
-*   **GitHub Personal Access Token (PAT)**: Required for GitHub integration features.
+- **Node.js** v18 or higher
+- **Git**
+- **Google Gemini API Key** — from [Google AI Studio](https://ai.google.dev/)
+- **GitHub Personal Access Token** — with `repo` scope
 
-### Local Setup
+### Installation
 
-1.  **Clone the Repository:**
-    ```bash
-    git clone https://github.com/sasikumar161106/AI_doc_Generator_for_developers.git
-    cd AI_doc_Generator_for_developers
-    ```
+```bash
+git clone https://github.com/sasikumar161106/DocSync_AI-powered_Technical_Documentation_Generator.git
+cd DocSync_AI-powered_Technical_Documentation_Generator
+npm install
+```
 
-2.  **Install Dependencies:**
-    ```bash
-    npm install
-    ```
+### Configuration
 
-3.  **Configure Environment Variables:**
-    Create a `.env.local` file in the root of your project (or edit `.env` if it exists) and add your API keys:
+Create a `.env` file in the project root:
 
-    ```ini
-    # .env.local
-    GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
-    GITHUB_TOKEN="ghp_your_github_personal_access_token"
-    ```
+```ini
+# Required
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+GITHUB_TOKEN="ghp_your_github_personal_access_token"
 
-    *   **`GEMINI_API_KEY`**: Get this from [Google AI Studio](https://ai.google.dev/).
-    *   **`GITHUB_TOKEN`**:
-        *   Go to GitHub Settings -> Developer Settings -> Personal Access Tokens -> Tokens (classic).
-        *   Click "Generate new token (classic)".
-        *   Give it a descriptive name (e.g., "DocSync Local").
-        *   **Crucially, grant `repo` scope (full control of private repositories).** Without this, DocSync cannot fetch your repos or commit documentation.
-        *   Generate the token and copy it immediately, as it will not be shown again.
+# Optional — enables webhook signature verification
+WEBHOOK_SECRET="your_webhook_secret_here"
+```
 
-4.  **Run the Application:**
-    Start the development server:
-    ```bash
-    npm run dev
-    ```
+- **`GEMINI_API_KEY`** — Get from [Google AI Studio](https://ai.google.dev/)
+- **`GITHUB_TOKEN`** — GitHub → Settings → Developer Settings → Personal Access Tokens → Tokens (classic). Grant `repo` scope.
+- **`WEBHOOK_SECRET`** — Any random string. Set the same value in your GitHub webhook settings for HMAC verification.
 
-    The application will typically be accessible at `http://localhost:3000`.
+### Running Locally
 
-### Using DocSync
+```bash
+npm run dev
+```
 
-Once the application is running, open your web browser and navigate to `http://localhost:3000`.
+Open `http://localhost:3000` in your browser.
 
-*   **Dashboard**:
-    *   Upon launching, if your `GITHUB_TOKEN` is configured correctly, you will see a list of your GitHub repositories.
-    *   Select a repository from the left panel.
-    *   Click "Analyze & Generate Documentation" to have the AI process your repository files.
-    *   Review the generated documentation.
-    *   Click "Commit Documentation" to push the generated `DOCSYNC.md` file directly to your selected repository.
-*   **Test Playground**:
-    *   Paste any code snippet into the "Source Code" area.
-    *   Optionally provide a filename and context for better AI understanding.
-    *   Click "Generate Docs" to see the AI-generated documentation in real-time.
-    *   Use the "Copy raw" button to copy the Markdown output.
-*   **Setup & Integration**:
-    *   Refer to this section for a detailed, in-app guide on generating and configuring your GitHub Personal Access Token. This is particularly helpful if you encounter issues with GitHub integration.
+### Setting Up Autonomous Webhooks
 
-**Important Note:** If you modify your `.env.local` file, you will need to restart the `npm run dev` process for the changes to take effect.
+To enable the autonomous PR documentation feature:
 
-## Technologies Used
+1. **Expose your local server** using [ngrok](https://ngrok.com/):
+   ```bash
+   ngrok http 3000
+   ```
 
-*   **Frontend**: React, TypeScript, Tailwind CSS, Vite
-*   **Backend**: Node.js, Express.js, TypeScript, dotenv
-*   **AI Model**: Google Gemini (`@google/genai`)
-*   **Markdown Rendering**: `react-markdown`
-*   **Icons**: `lucide-react`
+2. **Configure the webhook** on your GitHub repository:
+   - Go to **Settings → Webhooks → Add webhook**
+   - **Payload URL:** `https://<your-ngrok-id>.ngrok-free.app/api/github/webhook`
+   - **Content type:** `application/json`
+   - **Secret:** *(optional)* Same value as your `WEBHOOK_SECRET`
+   - **Events:** Select **only "Pull requests"**
 
-## License
+3. **Test it** — Create a branch, push a change, and open a Pull Request. DocSync will automatically post an analysis comment.
+
+### Using the Dashboard
+
+| Tab | What it does |
+|-----|-------------|
+| **Dashboard** | Select a repo → Analyze → Generate docs → Commit `DOCSYNC.md` back |
+| **Test Playground** | Paste code → Get instant Markdown docs → Copy to clipboard |
+| **Webhook Activity** | Live monitoring of all webhook events with stats |
+| **Doc History** | Browse and review all past AI-generated documentation |
+| **Setup & Integration** | In-app guide for GitHub token configuration |
+
+---
+
+## 🛠️ Technologies Used
+
+| Layer | Stack |
+|-------|-------|
+| **Frontend** | React, TypeScript, Tailwind CSS, Vite |
+| **Backend** | Node.js, Express.js, TypeScript |
+| **AI Model** | Google Gemini 2.5 Flash (`@google/genai`) |
+| **Security** | HMAC-SHA256 signature verification, rate limiting |
+| **Rendering** | `react-markdown` |
+| **Icons** | `lucide-react` |
+| **Animations** | `motion` (Framer Motion) |
+
+---
+
+## 📄 License
 
 This project is licensed under the [MIT License](LICENSE.md).

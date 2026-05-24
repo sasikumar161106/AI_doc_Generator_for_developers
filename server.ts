@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import express from "express";
 import path from "path";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 
@@ -10,6 +11,70 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
+
+// ========================================================================================
+// 📦 IN-MEMORY STORES — Webhook Activity Log, Doc History & Rate Limiting
+// ========================================================================================
+
+interface WebhookEvent {
+  id: string;
+  timestamp: string;
+  eventType: string;
+  action: string;
+  repoFullName: string;
+  prNumber: number | null;
+  prTitle: string;
+  prAuthor: string;
+  status: 'processing' | 'success' | 'failed' | 'ignored';
+  message: string;
+  commentUrl?: string;
+  durationMs?: number;
+}
+
+interface DocHistoryEntry {
+  id: string;
+  timestamp: string;
+  repoFullName: string;
+  prNumber: number;
+  prTitle: string;
+  prAuthor: string;
+  documentation: string;
+  commentUrl: string;
+}
+
+const webhookActivityLog: WebhookEvent[] = [];
+const docHistory: DocHistoryEntry[] = [];
+const MAX_LOG_SIZE = 100;
+const MAX_HISTORY_SIZE = 50;
+
+// Simple in-memory rate limiter
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 30; // max 30 webhook calls per minute
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+  if (!entry || now > entry.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+  entry.count++;
+  return true;
+}
+
+// Verify GitHub webhook signature (HMAC-SHA256)
+function verifyWebhookSignature(payload: string, signature: string | undefined, secret: string): boolean {
+  if (!signature) return false;
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update(payload, 'utf8');
+  const digest = `sha256=${hmac.digest('hex')}`;
+  return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature));
+}
+
 
 // Helper to get connected GenAI client
 function getGenAI() {
@@ -231,6 +296,290 @@ app.post("/api/github/commit", async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ========================================================================================
+// 🤖 AUTONOMOUS WEBHOOK SYSTEM — DocSync Autopilot
+// Signature verification · Rate limiting · Activity logging · Doc history
+// ========================================================================================
+
+// We need raw body for signature verification, so we add a raw body capture middleware
+app.post('/api/github/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const startTime = Date.now();
+  const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+  const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  const githubEvent = req.headers['x-github-event'] as string || 'unknown';
+  const deliveryId = req.headers['x-github-delivery'] as string || crypto.randomUUID();
+
+  // ── Rate Limiting ─────────────────────────────────────────────────────────
+  const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    console.error(`⛔ Rate limit exceeded for ${clientIp}`);
+    webhookActivityLog.unshift({
+      id: deliveryId,
+      timestamp: new Date().toISOString(),
+      eventType: githubEvent,
+      action: payload?.action || 'N/A',
+      repoFullName: payload?.repository?.full_name || 'unknown',
+      prNumber: null,
+      prTitle: '',
+      prAuthor: '',
+      status: 'failed',
+      message: 'Rate limit exceeded',
+      durationMs: Date.now() - startTime
+    });
+    if (webhookActivityLog.length > MAX_LOG_SIZE) webhookActivityLog.pop();
+    return res.status(429).json({ error: 'Rate limit exceeded' });
+  }
+
+  // ── Signature Verification (optional — only if WEBHOOK_SECRET is set) ─────
+  const webhookSecret = process.env.WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const signature = req.headers['x-hub-signature-256'] as string;
+    if (!verifyWebhookSignature(rawBody, signature, webhookSecret)) {
+      console.error('⛔ Invalid webhook signature — request rejected');
+      webhookActivityLog.unshift({
+        id: deliveryId,
+        timestamp: new Date().toISOString(),
+        eventType: githubEvent,
+        action: payload?.action || 'N/A',
+        repoFullName: payload?.repository?.full_name || 'unknown',
+        prNumber: null,
+        prTitle: '',
+        prAuthor: '',
+        status: 'failed',
+        message: 'Invalid webhook signature',
+        durationMs: Date.now() - startTime
+      });
+      if (webhookActivityLog.length > MAX_LOG_SIZE) webhookActivityLog.pop();
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+  }
+
+  // 1. GitHub expects a fast 2xx response — acknowledge receipt immediately
+  res.status(202).send('Webhook received and processing');
+
+  // 2. Only proceed for Pull Request opened or synchronized (new commits pushed)
+  if (
+    githubEvent === 'pull_request' &&
+    (payload.action === 'opened' || payload.action === 'synchronize')
+  ) {
+    const prNumber: number = payload.pull_request.number;
+    const diffUrl: string = payload.pull_request.diff_url;
+    const repoFullName: string = payload.repository.full_name;
+    const prTitle: string = payload.pull_request.title;
+    const prAuthor: string = payload.pull_request.user?.login || 'unknown';
+
+    // Log as processing
+    const activityEntry: WebhookEvent = {
+      id: deliveryId,
+      timestamp: new Date().toISOString(),
+      eventType: githubEvent,
+      action: payload.action,
+      repoFullName,
+      prNumber,
+      prTitle,
+      prAuthor,
+      status: 'processing',
+      message: `Processing PR #${prNumber} "${prTitle}"`
+    };
+    webhookActivityLog.unshift(activityEntry);
+    if (webhookActivityLog.length > MAX_LOG_SIZE) webhookActivityLog.pop();
+
+    console.log(`\n🚨 Autonomous trigger! PR #${prNumber} "${prTitle}" by @${prAuthor} in ${repoFullName}`);
+
+    try {
+      const token = process.env.GITHUB_TOKEN;
+      if (!token) {
+        activityEntry.status = 'failed';
+        activityEntry.message = 'GITHUB_TOKEN is not set';
+        activityEntry.durationMs = Date.now() - startTime;
+        console.error('❌ GITHUB_TOKEN is not set — cannot process webhook');
+        return;
+      }
+
+      // ── Fetch the code diff ───────────────────────────────────────────────
+      const diffResponse = await fetch(diffUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3.diff',
+          'User-Agent': 'DocSync-App'
+        }
+      });
+
+      if (!diffResponse.ok) {
+        throw new Error(`Failed to fetch diff: ${diffResponse.status} ${diffResponse.statusText}`);
+      }
+
+      const diffText = await diffResponse.text();
+      console.log(`✅ Fetched diff for PR #${prNumber} (${diffText.length} chars)`);
+
+      const maxDiffLength = 30000;
+      const truncatedDiff = diffText.length > maxDiffLength
+        ? diffText.substring(0, maxDiffLength) + '\n\n... [diff truncated for size]'
+        : diffText;
+
+      // ── Prompt Gemini with the diff ───────────────────────────────────────
+      const ai = getGenAI();
+
+      const prompt = `You are an expert technical documentation agent named DocSync.
+Review the following code diff from Pull Request #${prNumber} titled "${prTitle}" in the repository "${repoFullName}".
+
+Write a concise, well-structured Markdown summary of the changes suitable for a PR comment.
+
+Include:
+1. **High-Level Summary** — A 1-2 sentence overview of the purpose of these changes.
+2. **Files Changed** — For each modified file, briefly explain what changed and why it matters.
+3. **New Additions** — Any new functions, endpoints, classes, dependencies, or configurations added.
+4. **Potential Concerns** — Flag any potential issues, missing tests, or areas that may need review.
+5. **Documentation Impact** — Note if existing documentation should be updated based on these changes.
+
+Keep the tone professional and helpful. Use bullet points for clarity.
+
+Code Diff:
+\`\`\`diff
+${truncatedDiff}
+\`\`\`
+`;
+
+      const geminiResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+      });
+
+      const aiDocumentation = geminiResponse.text;
+      if (!aiDocumentation) {
+        throw new Error('Gemini returned an empty response');
+      }
+
+      console.log(`✅ Gemini analysis complete for PR #${prNumber}`);
+
+      // ── Post the comment back to the Pull Request ─────────────────────────
+      const commentsUrl = `https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments`;
+
+      const commentBody = `## 🤖 DocSync Automated Analysis
+
+> _This analysis was automatically generated by **DocSync** when this PR was ${payload.action === 'opened' ? 'opened' : 'updated'}._
+
+${aiDocumentation}
+
+---
+<sub>🔗 Powered by <b>DocSync AI</b> · Gemini 2.5 Flash · <a href="https://github.com/${repoFullName}">Repository</a></sub>`;
+
+      const commentResponse = await fetch(commentsUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'DocSync-App'
+        },
+        body: JSON.stringify({ body: commentBody })
+      });
+
+      if (commentResponse.ok) {
+        const commentData = await commentResponse.json() as any;
+        const commentUrl = commentData.html_url;
+        console.log(`✅ Posted documentation to PR #${prNumber}: ${commentUrl}`);
+
+        // Update activity log
+        activityEntry.status = 'success';
+        activityEntry.message = `Documentation posted to PR #${prNumber}`;
+        activityEntry.commentUrl = commentUrl;
+        activityEntry.durationMs = Date.now() - startTime;
+
+        // Save to documentation history
+        docHistory.unshift({
+          id: deliveryId,
+          timestamp: new Date().toISOString(),
+          repoFullName,
+          prNumber,
+          prTitle,
+          prAuthor,
+          documentation: aiDocumentation,
+          commentUrl
+        });
+        if (docHistory.length > MAX_HISTORY_SIZE) docHistory.pop();
+      } else {
+        const errText = await commentResponse.text();
+        activityEntry.status = 'failed';
+        activityEntry.message = `Failed to post comment: ${commentResponse.status}`;
+        activityEntry.durationMs = Date.now() - startTime;
+        console.error(`❌ Failed to post comment to PR #${prNumber}: ${commentResponse.status} ${errText}`);
+      }
+    } catch (error: any) {
+      activityEntry.status = 'failed';
+      activityEntry.message = error.message || 'Unknown error';
+      activityEntry.durationMs = Date.now() - startTime;
+      console.error(`❌ Error processing webhook for PR #${prNumber}:`, error);
+    }
+  } else {
+    // Log ignored events
+    webhookActivityLog.unshift({
+      id: deliveryId,
+      timestamp: new Date().toISOString(),
+      eventType: githubEvent,
+      action: payload?.action || 'N/A',
+      repoFullName: payload?.repository?.full_name || 'unknown',
+      prNumber: null,
+      prTitle: '',
+      prAuthor: '',
+      status: 'ignored',
+      message: `Ignored: ${githubEvent} / ${payload?.action || 'N/A'}`,
+      durationMs: Date.now() - startTime
+    });
+    if (webhookActivityLog.length > MAX_LOG_SIZE) webhookActivityLog.pop();
+    console.log(`ℹ️  Ignored webhook event: ${githubEvent} — action: ${payload?.action || 'N/A'}`);
+  }
+});
+
+// ========================================================================================
+// 📊 DASHBOARD API ENDPOINTS — Activity, History & Stats
+// ========================================================================================
+
+// Get webhook activity log (recent events)
+app.get('/api/webhook/activity', (_req, res) => {
+  res.json(webhookActivityLog);
+});
+
+// Get documentation history (past generated docs)
+app.get('/api/webhook/history', (_req, res) => {
+  res.json(docHistory);
+});
+
+// Get aggregated stats
+app.get('/api/webhook/stats', (_req, res) => {
+  const total = webhookActivityLog.length;
+  const successful = webhookActivityLog.filter(e => e.status === 'success').length;
+  const failed = webhookActivityLog.filter(e => e.status === 'failed').length;
+  const ignored = webhookActivityLog.filter(e => e.status === 'ignored').length;
+  const processing = webhookActivityLog.filter(e => e.status === 'processing').length;
+  const avgDuration = webhookActivityLog
+    .filter(e => e.durationMs)
+    .reduce((sum, e) => sum + (e.durationMs || 0), 0) / (successful + failed || 1);
+
+  res.json({
+    total,
+    successful,
+    failed,
+    ignored,
+    processing,
+    avgDurationMs: Math.round(avgDuration),
+    docsGenerated: docHistory.length,
+    lastEvent: webhookActivityLog[0]?.timestamp || null
+  });
+});
+
+// Health-check endpoint for webhook verification
+app.get('/api/github/webhook/health', (_req, res) => {
+  res.json({
+    status: 'active',
+    service: 'DocSync Autonomous Agent',
+    timestamp: new Date().toISOString(),
+    webhookEndpoint: '/api/github/webhook',
+    signatureVerification: !!process.env.WEBHOOK_SECRET,
+    rateLimiting: { windowMs: RATE_LIMIT_WINDOW_MS, maxRequests: RATE_LIMIT_MAX }
+  });
 });
 
 // Vite middleware for development

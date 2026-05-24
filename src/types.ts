@@ -1,4 +1,4 @@
-export type ViewState = 'dashboard' | 'playground' | 'settings';
+export type ViewState = 'dashboard' | 'playground' | 'settings' | 'webhook' | 'history';
 
 export interface GeneratedDoc {
   id: string;

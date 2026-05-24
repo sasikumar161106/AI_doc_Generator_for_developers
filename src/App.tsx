@@ -3,7 +3,9 @@ import { ViewState } from './types';
 import Dashboard from './components/Dashboard';
 import Playground from './components/Playground';
 import Settings from './components/Settings';
-import { BookOpen, LayoutDashboard, Settings as SettingsIcon, TerminalSquare, User } from 'lucide-react';
+import WebhookDashboard from './components/WebhookDashboard';
+import DocHistory from './components/DocHistory';
+import { BookOpen, LayoutDashboard, Settings as SettingsIcon, TerminalSquare, User, Activity, History } from 'lucide-react';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -43,6 +45,18 @@ export default function App() {
             onClick={() => setCurrentView('playground')} 
           />
           <NavItem 
+            icon={<Activity className="w-5 h-5" />}
+            label="Webhook Activity" 
+            isActive={currentView === 'webhook'} 
+            onClick={() => setCurrentView('webhook')} 
+          />
+          <NavItem 
+            icon={<History className="w-5 h-5" />}
+            label="Doc History" 
+            isActive={currentView === 'history'} 
+            onClick={() => setCurrentView('history')} 
+          />
+          <NavItem 
             icon={<SettingsIcon className="w-5 h-5" />}
             label="Setup & Integration" 
             isActive={currentView === 'settings'} 
@@ -79,13 +93,18 @@ export default function App() {
       <div className="flex-1 ml-64 flex flex-col h-screen">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
           <h1 className="text-lg font-medium text-slate-800 capitalize">
-            {currentView === 'settings' ? 'Setup & Integration' : currentView.replace('-', ' ')}
+            {currentView === 'settings' ? 'Setup & Integration' 
+              : currentView === 'webhook' ? 'Webhook Activity'
+              : currentView === 'history' ? 'Documentation History'
+              : currentView.replace('-', ' ')}
           </h1>
         </header>
 
         <main className="flex-1 p-8 overflow-y-auto">
           {currentView === 'dashboard' && <Dashboard />}
           {currentView === 'playground' && <Playground />}
+          {currentView === 'webhook' && <WebhookDashboard />}
+          {currentView === 'history' && <DocHistory />}
           {currentView === 'settings' && <Settings />}
         </main>
       </div>
