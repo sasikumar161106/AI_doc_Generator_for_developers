@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Github, Code2, RefreshCw, Activity, ExternalLink, Send, ArrowRight, Loader2, CheckCircle2, Book } from 'lucide-react';
+import { motion } from 'motion/react';
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -91,140 +92,190 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-6xl">
+    <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-medium text-slate-800">Your Repositories</h2>
-          <p className="text-slate-500 mt-1">Select a repository to analyze its structure and generate comprehensive documentation.</p>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Your Repositories</h2>
+          <p className="text-slate-400 mt-2 text-sm max-w-lg">Select a repository to analyze its structure and generate comprehensive documentation.</p>
         </div>
         <button 
           onClick={fetchRepos}
           disabled={loading}
-          className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+          className="glass-panel text-white px-5 py-2.5 rounded-xl hover:bg-white/10 hover:shadow-lg transition-all duration-300 text-sm font-medium flex items-center gap-2 group border-white/10"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-400' : 'text-slate-400 group-hover:rotate-180 transition-transform duration-500'}`} />
+          Refresh Repos
         </button>
       </div>
 
-      {error && error.includes('GITHUB_TOKEN') ? (
-        <div className="bg-amber-50 border border-amber-200 p-6 rounded-xl flex items-start gap-4">
-          <div className="text-amber-800 flex-1">
-            <h3 className="font-semibold text-lg mb-2">GitHub Token is missing</h3>
-            <p className="text-sm">Please configure the <code className="bg-amber-100 px-1 rounded">GITHUB_TOKEN</code> environment variable in your <code>.env</code> file. Without this, DocSync cannot fetch your repositories.</p>
-          </div>
-        </div>
-      ) : loading ? (
-        <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-200 rounded-xl">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-4" />
-          <p className="text-slate-500 font-medium">Fetching your repositories...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 p-6 rounded-xl text-red-800">
-          <p><strong>Error:</strong> {error}</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* Repositories List Card */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col h-[650px] overflow-hidden lg:col-span-1">
-            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between shrink-0">
-              <h3 className="font-medium text-slate-800 text-sm">Select Repository</h3>
-              <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">{repos?.length || 0}</span>
-            </div>
-            <div className="flex-1 overflow-auto p-2">
-              {!repos || repos.length === 0 ? (
-                 <div className="p-4 text-sm text-slate-500 text-center">No repositories found.</div>
-              ) : (
-                <div className="space-y-1">
-                  {repos.map(repo => (
-                    <button
-                      key={repo.id}
-                      onClick={() => handleSelectRepo(repo)}
-                      className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-colors flex items-center gap-3 ${selectedRepo?.id === repo.id ? 'bg-blue-50 border border-blue-200 text-blue-800' : 'hover:bg-slate-50 border border-transparent text-slate-700'}`}
-                    >
-                      <Book className={`w-4 h-4 shrink-0 ${selectedRepo?.id === repo.id ? 'text-blue-600' : 'text-slate-400'}`} />
-                      <div className="truncate">
-                        <span className="font-medium block truncate">{repo.name}</span>
-                        <span className="text-xs opacity-70 block truncate mt-0.5">{repo.full_name}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+      {error && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl shadow-sm text-sm">
+          {error}
+        </motion.div>
+      )}
 
-          {/* Repo Details / Documentation Preview Card */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col h-[650px] overflow-hidden lg:col-span-2">
-            {!selectedRepo ? (
-               <div className="flex-1 flex flex-col items-center justify-center p-12 text-slate-400">
-                  <Github className="w-12 h-12 mb-4 opacity-30" />
-                  <p className="text-center font-medium">Select a repository from the list</p>
-                  <p className="text-center text-sm mt-2 max-w-sm">DocSync will analyze the top codebase files and generate a comprehensive documentation summary.</p>
-               </div>
-            ) : generatedDoc ? (
-               <>
-                 <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 shrink-0 flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium text-slate-800">Generated Documentation</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">{selectedRepo.full_name} • Saving as DOCSYNC.md</p>
-                    </div>
-                    <button 
-                      onClick={() => handleSelectRepo(selectedRepo)}
-                      className="text-sm text-slate-500 hover:text-slate-800"
-                    >
-                      Reset
-                    </button>
-                 </div>
-                 <div className="flex-1 overflow-auto p-6 prose prose-sm prose-slate max-w-none">
-                    <ReactMarkdown>{generatedDoc}</ReactMarkdown>
-                 </div>
-                 <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
-                    {pushSuccessUrl ? (
-                      <a href={pushSuccessUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-green-600 font-medium text-sm hover:underline">
-                        <CheckCircle2 className="w-4 h-4" /> Successfully pushed DOCSYNC.md
-                      </a>
-                    ) : (<div></div>)}
-                    <button 
-                      onClick={handlePush}
-                      disabled={pushing || !!pushSuccessUrl}
-                      className="bg-slate-900 text-white px-5 py-2.5 rounded-md hover:bg-slate-800 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
-                    >
-                      {pushing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      {pushSuccessUrl ? 'Added to Repo' : 'Commit Documentation'}
-                    </button>
-                 </div>
-               </>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Repository List */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="glass-panel rounded-2xl p-5 shadow-lg flex flex-col h-[calc(100vh-220px)] border-white/5">
+            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 px-1">Available Repositories</h3>
+            
+            {loading ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
+                <p className="text-sm">Fetching repositories...</p>
+              </div>
+            ) : repos.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-4 text-center">
+                <Github className="w-12 h-12 mb-4 opacity-20" />
+                <p className="text-sm">No repositories found or token lacks permissions.</p>
+              </div>
             ) : (
-               <div className="flex-1 flex flex-col items-center justify-center p-12 bg-slate-50/30">
-                  <Book className="w-16 h-16 mb-4 text-blue-100" />
-                  <h3 className="text-xl font-medium text-slate-800 mb-2">{selectedRepo.name}</h3>
-                  <p className="text-center text-slate-500 max-w-md text-sm mb-8">
-                    We will analyze the repository structure, review core code files, and build an overarching documentation document.
-                  </p>
-                  
-                  <button 
-                    onClick={handleGenerate}
-                    disabled={generating}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+              <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                {repos.map((repo, index) => (
+                  <motion.button
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    key={repo.id}
+                    onClick={() => handleSelectRepo(repo)}
+                    className={`w-full text-left p-4 rounded-xl transition-all duration-200 border ${
+                      selectedRepo?.id === repo.id
+                        ? 'bg-indigo-500/15 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                        : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10'
+                    }`}
                   >
-                    {generating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Analyzing Repository...
-                      </>
-                    ) : (
-                      <>
-                        <Activity className="w-4 h-4" />
-                        Analyze & Generate Documentation
-                      </>
-                    )}
-                  </button>
-               </div>
+                    <div className="flex items-start gap-3">
+                      <Book className={`w-5 h-5 shrink-0 mt-0.5 ${selectedRepo?.id === repo.id ? 'text-indigo-400' : 'text-slate-500'}`} />
+                      <div className="min-w-0">
+                        <p className={`font-medium truncate ${selectedRepo?.id === repo.id ? 'text-indigo-200' : 'text-slate-200'}`}>
+                          {repo.name}
+                        </p>
+                        {repo.description && (
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">{repo.description}</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-3 text-xs text-slate-500">
+                          <span className="flex items-center gap-1.5"><Code2 className="w-3.5 h-3.5" />{repo.language || 'Unknown'}</span>
+                          <span className="flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" />{repo.stargazers_count}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
             )}
           </div>
         </div>
-      )}
+
+        {/* Right Column: Details & Action */}
+        <div className="lg:col-span-2">
+          {!selectedRepo ? (
+            <div className="glass-panel rounded-2xl h-full min-h-[400px] flex flex-col items-center justify-center p-12 text-slate-400 border-white/5">
+              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6 shadow-inner border border-white/5">
+                <Github className="w-8 h-8 text-slate-500" />
+              </div>
+              <h3 className="text-xl font-medium text-slate-200 mb-2">No Repository Selected</h3>
+              <p className="text-center text-sm max-w-sm leading-relaxed">
+                Choose a repository from the list to analyze its codebase and generate high-quality technical documentation.
+              </p>
+            </div>
+          ) : (
+            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="glass-panel rounded-2xl shadow-xl border-white/5 overflow-hidden flex flex-col h-[calc(100vh-220px)]">
+              {/* Header */}
+              <div className="p-6 border-b border-white/10 bg-white/5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                      {selectedRepo.name}
+                    </h3>
+                    <p className="text-sm text-slate-400 mt-1">{selectedRepo.full_name}</p>
+                  </div>
+                  <a 
+                    href={selectedRepo.html_url} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 text-sm bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-colors"
+                  >
+                    View Source <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Content Area */}
+              <div className="flex-1 overflow-y-auto p-6 bg-black/20">
+                {!generatedDoc ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center">
+                    {generating ? (
+                      <div className="max-w-md mx-auto">
+                        <div className="relative mb-8">
+                          <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full"></div>
+                          <Loader2 className="w-16 h-16 animate-spin text-indigo-400 relative z-10 mx-auto" />
+                        </div>
+                        <h4 className="text-lg font-medium text-slate-200 mb-2">Analyzing Codebase</h4>
+                        <p className="text-sm text-slate-400">
+                          DocSync AI is scanning the repository structure, filtering crucial files, and generating comprehensive Markdown documentation...
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="max-w-sm mx-auto">
+                        <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner border border-white/5">
+                          <Code2 className="w-8 h-8 text-indigo-400" />
+                        </div>
+                        <h4 className="text-lg font-medium text-slate-200 mb-3">Ready to Generate</h4>
+                        <p className="text-sm text-slate-400 mb-8 leading-relaxed">
+                          Click below to initiate the AI analysis. The model will create a complete `DOCSYNC.md` file tailored to this project.
+                        </p>
+                        <button
+                          onClick={handleGenerate}
+                          className="w-full bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] px-6 py-3.5 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
+                        >
+                          <Send className="w-5 h-5" />
+                          Analyze & Generate Docs
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-semibold text-slate-200 flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        Documentation Generated
+                      </h4>
+                      {pushSuccessUrl ? (
+                        <a 
+                          href={pushSuccessUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 text-sm font-medium bg-emerald-400/10 px-4 py-2 rounded-lg border border-emerald-400/20 transition-colors"
+                        >
+                          View Commit <ExternalLink className="w-4 h-4" />
+                        </a>
+                      ) : (
+                        <button
+                          onClick={handlePush}
+                          disabled={pushing}
+                          className="bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] flex items-center gap-2 border border-indigo-400/50"
+                        >
+                          {pushing ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" /> Committing...</>
+                          ) : (
+                            <>Commit to GitHub <ArrowRight className="w-4 h-4" /></>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 bg-black/40 rounded-xl p-6 overflow-y-auto border border-white/5 shadow-inner prose prose-invert prose-slate prose-a:text-indigo-400 prose-headings:text-slate-200 max-w-none">
+                      <ReactMarkdown>{generatedDoc}</ReactMarkdown>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

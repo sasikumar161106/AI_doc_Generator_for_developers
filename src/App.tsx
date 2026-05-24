@@ -6,6 +6,7 @@ import Settings from './components/Settings';
 import WebhookDashboard from './components/WebhookDashboard';
 import DocHistory from './components/DocHistory';
 import { BookOpen, LayoutDashboard, Settings as SettingsIcon, TerminalSquare, User, Activity, History } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -23,64 +24,66 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 z-10">
-        <div className="h-16 flex items-center px-6 border-b border-slate-200">
-          <BookOpen className="w-6 h-6 text-blue-600 mr-3" />
-          <span className="font-semibold text-lg text-slate-800 tracking-tight">DocSync AI</span>
+    <div className="min-h-screen flex font-sans text-slate-200">
+      {/* Glass Sidebar */}
+      <div className="w-64 glass-sidebar flex flex-col fixed inset-y-0 z-20">
+        <div className="h-16 flex items-center px-6 border-b border-white/5">
+          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center mr-3 border border-primary/30 shadow-[0_0_15px_rgba(99,102,241,0.3)]">
+            <BookOpen className="w-5 h-5 text-indigo-400" />
+          </div>
+          <span className="font-semibold text-lg text-white tracking-tight text-glow">DocSync AI</span>
         </div>
         
-        <nav className="flex-1 py-6 px-4 space-y-1">
+        <nav className="flex-1 py-6 px-4 space-y-2">
           <NavItem 
-            icon={<LayoutDashboard className="w-5 h-5" />}
+            icon={<LayoutDashboard />}
             label="Dashboard" 
             isActive={currentView === 'dashboard'} 
             onClick={() => setCurrentView('dashboard')} 
           />
           <NavItem 
-            icon={<TerminalSquare className="w-5 h-5" />}
+            icon={<TerminalSquare />}
             label="Test Playground" 
             isActive={currentView === 'playground'} 
             onClick={() => setCurrentView('playground')} 
           />
           <NavItem 
-            icon={<Activity className="w-5 h-5" />}
+            icon={<Activity />}
             label="Webhook Activity" 
             isActive={currentView === 'webhook'} 
             onClick={() => setCurrentView('webhook')} 
           />
           <NavItem 
-            icon={<History className="w-5 h-5" />}
+            icon={<History />}
             label="Doc History" 
             isActive={currentView === 'history'} 
             onClick={() => setCurrentView('history')} 
           />
           <NavItem 
-            icon={<SettingsIcon className="w-5 h-5" />}
+            icon={<SettingsIcon />}
             label="Setup & Integration" 
             isActive={currentView === 'settings'} 
             onClick={() => setCurrentView('settings')} 
           />
         </nav>
 
-        <div className="p-4 border-t border-slate-200">
+        <div className="p-4 border-t border-white/5 bg-black/10">
           <div className="flex items-center gap-3 px-2 py-2">
             {githubUser ? (
               <>
-                <img src={githubUser.avatar_url} alt={githubUser.login} className="w-8 h-8 rounded-full bg-slate-200" />
+                <img src={githubUser.avatar_url} alt={githubUser.login} className="w-9 h-9 rounded-full border border-white/10 shadow-sm" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{githubUser.name || githubUser.login}</p>
-                  <p className="text-xs text-slate-500 truncate">{githubUser.email || `@${githubUser.login}`}</p>
+                  <p className="text-sm font-medium text-slate-200 truncate">{githubUser.name || githubUser.login}</p>
+                  <p className="text-xs text-slate-400 truncate">{githubUser.email || `@${githubUser.login}`}</p>
                 </div>
               </>
             ) : (
               <>
-                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-medium text-slate-600 text-sm">
+                <div className="w-9 h-9 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-medium text-slate-400 text-sm shadow-inner">
                   <User className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">Not connected</p>
+                  <p className="text-sm font-medium text-slate-300 truncate">Not connected</p>
                   <p className="text-xs text-slate-500 truncate">Configure token</p>
                 </div>
               </>
@@ -90,22 +93,38 @@ export default function App() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 flex flex-col h-screen">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
-          <h1 className="text-lg font-medium text-slate-800 capitalize">
-            {currentView === 'settings' ? 'Setup & Integration' 
-              : currentView === 'webhook' ? 'Webhook Activity'
-              : currentView === 'history' ? 'Documentation History'
-              : currentView.replace('-', ' ')}
-          </h1>
+      <div className="flex-1 ml-64 flex flex-col h-screen relative z-10">
+        <header className="h-16 glass-panel border-t-0 border-x-0 flex items-center px-8 shrink-0 justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-medium text-white capitalize tracking-wide text-glow">
+              {currentView === 'settings' ? 'Setup & Integration' 
+                : currentView === 'webhook' ? 'Webhook Activity'
+                : currentView === 'history' ? 'Documentation History'
+                : currentView.replace('-', ' ')}
+            </h1>
+            <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-300 text-xs font-semibold rounded-full border border-indigo-500/20 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+              v1.1 Autonomous
+            </span>
+          </div>
         </header>
 
-        <main className="flex-1 p-8 overflow-y-auto">
-          {currentView === 'dashboard' && <Dashboard />}
-          {currentView === 'playground' && <Playground />}
-          {currentView === 'webhook' && <WebhookDashboard />}
-          {currentView === 'history' && <DocHistory />}
-          {currentView === 'settings' && <Settings />}
+        <main className="flex-1 p-8 overflow-y-auto relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentView}
+              initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="h-full"
+            >
+              {currentView === 'dashboard' && <Dashboard />}
+              {currentView === 'playground' && <Playground />}
+              {currentView === 'webhook' && <WebhookDashboard />}
+              {currentView === 'history' && <DocHistory />}
+              {currentView === 'settings' && <Settings />}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>
@@ -126,14 +145,14 @@ function NavItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
         isActive 
-          ? 'bg-blue-50 text-blue-700' 
-          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-inner' 
+          : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
       }`}
     >
       {React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
-        className: `w-5 h-5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`
+        className: `w-5 h-5 transition-colors ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`
       })}
       {label}
     </button>

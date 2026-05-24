@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, CheckCircle2, XCircle, Clock, Zap, RefreshCw, ExternalLink, AlertTriangle, Loader2, Eye } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface WebhookEvent {
   id: string;
@@ -39,10 +40,10 @@ function timeAgo(dateStr: string): string {
 }
 
 const statusConfig = {
-  success: { icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Success' },
-  failed: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200', label: 'Failed' },
-  processing: { icon: Loader2, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-200', label: 'Processing' },
-  ignored: { icon: Eye, color: 'text-slate-400', bg: 'bg-slate-50', border: 'border-slate-200', label: 'Ignored' },
+  success: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', glow: 'shadow-[0_0_15px_rgba(52,211,153,0.2)]', label: 'Success' },
+  failed: { icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20', glow: 'shadow-[0_0_15px_rgba(251,113,133,0.2)]', label: 'Failed' },
+  processing: { icon: Loader2, color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', glow: 'shadow-[0_0_15px_rgba(99,102,241,0.2)]', label: 'Processing' },
+  ignored: { icon: Eye, color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20', glow: '', label: 'Ignored' },
 };
 
 export default function WebhookDashboard() {
@@ -74,44 +75,44 @@ export default function WebhookDashboard() {
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-16 bg-white border border-slate-200 rounded-xl">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-4" />
-        <p className="text-slate-500 font-medium">Loading webhook activity...</p>
+      <div className="flex flex-col items-center justify-center h-full text-slate-400">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
+        <p className="font-medium">Establishing connection...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl">
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-medium text-slate-800">Webhook Activity</h2>
-          <p className="text-slate-500 mt-1">Real-time monitoring of autonomous PR documentation events.</p>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Webhook Activity</h2>
+          <p className="text-slate-400 mt-2 text-sm max-w-lg">Real-time monitoring of autonomous pull request documentation events.</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors border ${
+            className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 transition-all duration-300 border ${
               autoRefresh
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_15px_rgba(52,211,153,0.15)]'
+                : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
             }`}
           >
-            <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+            <div className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-slate-500'}`} />
             {autoRefresh ? 'Live' : 'Paused'}
           </button>
           <button
             onClick={fetchData}
-            className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium flex items-center gap-2"
+            className="glass-panel border-white/10 text-white px-4 py-2 rounded-xl hover:bg-white/10 hover:shadow-lg transition-all duration-300 text-sm font-medium flex items-center gap-2 group"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4 text-slate-400 group-hover:rotate-180 transition-transform duration-500" />
             Refresh
           </button>
         </div>
@@ -119,101 +120,123 @@ export default function WebhookDashboard() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
             label="Total Events"
             value={stats.total}
-            icon={<Activity className="w-5 h-5" />}
-            color="text-blue-600"
-            bgColor="bg-blue-50"
+            icon={<Activity />}
+            glowColor="rgba(99,102,241,0.5)"
+            accentClass="text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
           />
           <StatCard
             label="Successful"
             value={stats.successful}
-            icon={<CheckCircle2 className="w-5 h-5" />}
-            color="text-emerald-600"
-            bgColor="bg-emerald-50"
+            icon={<CheckCircle2 />}
+            glowColor="rgba(52,211,153,0.5)"
+            accentClass="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
             subtitle={stats.total > 0 ? `${Math.round((stats.successful / Math.max(stats.total - stats.ignored, 1)) * 100)}% success rate` : undefined}
           />
           <StatCard
             label="Avg. Duration"
             value={stats.avgDurationMs > 0 ? `${(stats.avgDurationMs / 1000).toFixed(1)}s` : '—'}
-            icon={<Clock className="w-5 h-5" />}
-            color="text-amber-600"
-            bgColor="bg-amber-50"
+            icon={<Clock />}
+            glowColor="rgba(245,158,11,0.5)"
+            accentClass="text-amber-400 bg-amber-500/10 border-amber-500/20"
           />
           <StatCard
             label="Docs Generated"
             value={stats.docsGenerated}
-            icon={<Zap className="w-5 h-5" />}
-            color="text-violet-600"
-            bgColor="bg-violet-50"
+            icon={<Zap />}
+            glowColor="rgba(167,139,250,0.5)"
+            accentClass="text-violet-400 bg-violet-500/10 border-violet-500/20"
             subtitle={stats.lastEvent ? `Last: ${timeAgo(stats.lastEvent)}` : undefined}
           />
         </div>
       )}
 
       {/* Activity Feed */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-          <h3 className="font-medium text-slate-800 text-sm">Event Log</h3>
-          <span className="text-xs text-slate-400">{activity.length} events</span>
+      <div className="glass-panel rounded-2xl shadow-xl overflow-hidden border-white/5">
+        <div className="px-6 py-5 border-b border-white/10 bg-white/5 flex items-center justify-between">
+          <h3 className="font-semibold text-slate-200 text-sm tracking-wide uppercase">Event Stream</h3>
+          <span className="text-xs font-medium text-slate-400 bg-black/20 px-2 py-1 rounded-md border border-white/5">
+            {activity.length} events logged
+          </span>
         </div>
 
         {activity.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-16 text-slate-400">
-            <Activity className="w-12 h-12 mb-4 opacity-30" />
-            <p className="font-medium">No webhook events yet</p>
-            <p className="text-sm mt-2 max-w-sm text-center">
-              Events will appear here when GitHub sends webhook notifications for Pull Requests.
+          <div className="flex flex-col items-center justify-center p-20 text-slate-400">
+            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6 shadow-inner border border-white/5">
+              <Activity className="w-10 h-10 text-slate-500" />
+            </div>
+            <p className="font-medium text-lg text-slate-300">Listening for Webhooks...</p>
+            <p className="text-sm mt-2 max-w-md text-center leading-relaxed">
+              Open a Pull Request on your connected GitHub repository and watch the events stream in live.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
-            {activity.map((event) => {
-              const config = statusConfig[event.status];
-              const StatusIcon = config.icon;
-              return (
-                <div key={event.id} className={`px-6 py-4 flex items-start gap-4 hover:bg-slate-50/50 transition-colors`}>
-                  <div className={`w-8 h-8 rounded-full ${config.bg} ${config.border} border flex items-center justify-center shrink-0 mt-0.5`}>
-                    <StatusIcon className={`w-4 h-4 ${config.color} ${event.status === 'processing' ? 'animate-spin' : ''}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
-                        {config.label}
-                      </span>
-                      {event.prNumber && (
-                        <span className="text-xs text-slate-500 font-mono">PR #{event.prNumber}</span>
-                      )}
-                      <span className="text-xs text-slate-400">{timeAgo(event.timestamp)}</span>
-                      {event.durationMs && (
-                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {(event.durationMs / 1000).toFixed(1)}s
-                        </span>
-                      )}
+          <div className="divide-y divide-white/5 max-h-[600px] overflow-y-auto custom-scrollbar bg-black/20">
+            <AnimatePresence>
+              {activity.map((event, i) => {
+                const config = statusConfig[event.status];
+                const StatusIcon = config.icon;
+                return (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="px-6 py-5 flex items-start gap-5 hover:bg-white/5 transition-colors group"
+                  >
+                    <div className={`w-10 h-10 rounded-xl ${config.bg} ${config.border} border flex items-center justify-center shrink-0 shadow-inner ${config.glow}`}>
+                      <StatusIcon className={`w-5 h-5 ${config.color} ${event.status === 'processing' ? 'animate-spin' : ''}`} />
                     </div>
-                    <p className="text-sm text-slate-800 font-medium truncate">{event.message}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 truncate">
-                      {event.repoFullName}
-                      {event.prAuthor && ` · @${event.prAuthor}`}
-                    </p>
-                  </div>
-                  {event.commentUrl && (
-                    <a
-                      href={event.commentUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-500 hover:text-blue-700 shrink-0 mt-1"
-                      title="View comment on GitHub"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  )}
-                </div>
-              );
-            })}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${config.bg} ${config.color} ${config.border}`}>
+                          {config.label}
+                        </span>
+                        {event.prNumber && (
+                          <span className="text-xs text-indigo-300 font-mono bg-indigo-500/10 px-2 py-1 rounded-md border border-indigo-500/20">
+                            PR #{event.prNumber}
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-500 font-medium">{timeAgo(event.timestamp)}</span>
+                        {event.durationMs && (
+                          <span className="text-xs text-slate-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {(event.durationMs / 1000).toFixed(1)}s
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-200 font-medium truncate mb-1">{event.message}</p>
+                      <p className="text-xs text-slate-400 truncate flex items-center gap-2">
+                        <span className="text-indigo-400">{event.repoFullName}</span>
+                        {event.prAuthor && (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-slate-600"></span>
+                            <span className="flex items-center gap-1">
+                              <img src={`https://github.com/${event.prAuthor}.png?size=24`} alt={event.prAuthor} className="w-4 h-4 rounded-full" />
+                              {event.prAuthor}
+                            </span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    {event.commentUrl && (
+                      <a
+                        href={event.commentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/20 transition-all shadow-sm shrink-0 mt-1 opacity-0 group-hover:opacity-100"
+                        title="View comment on GitHub"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         )}
       </div>
@@ -225,29 +248,34 @@ function StatCard({
   label,
   value,
   icon,
-  color,
-  bgColor,
+  accentClass,
+  glowColor,
   subtitle
 }: {
   label: string;
   value: string | number;
   icon: React.ReactNode;
-  color: string;
-  bgColor: string;
+  accentClass: string;
+  glowColor: string;
   subtitle?: string;
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-slate-500 font-medium">{label}</span>
-        <div className={`w-8 h-8 rounded-lg ${bgColor} flex items-center justify-center`}>
+    <motion.div 
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 300 }}
+      className="glass-panel rounded-2xl p-6 border-white/5 relative overflow-hidden group"
+    >
+      <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full blur-3xl opacity-20 transition-opacity duration-500 group-hover:opacity-40`} style={{ background: glowColor }}></div>
+      <div className="flex items-center justify-between mb-4 relative z-10">
+        <span className="text-sm text-slate-400 font-medium tracking-wide">{label}</span>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-inner ${accentClass}`}>
           {React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
-            className: `w-4 h-4 ${color}`
+            className: "w-5 h-5"
           })}
         </div>
       </div>
-      <p className="text-2xl font-semibold text-slate-900">{value}</p>
-      {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
-    </div>
+      <p className="text-3xl font-bold text-white relative z-10">{value}</p>
+      {subtitle && <p className="text-xs text-slate-500 mt-2 relative z-10 font-medium">{subtitle}</p>}
+    </motion.div>
   );
 }

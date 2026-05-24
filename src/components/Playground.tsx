@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Loader2, Code2, Send, FileCode2, Copy, CheckCircle2 } from 'lucide-react';
 import { GeneratedDoc } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Playground() {
   const [code, setCode] = useState('');
@@ -57,99 +58,101 @@ export default function Playground() {
   };
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-6rem)] overflow-hidden">
-      {/* Editor Section */}
-      <div className="flex-1 flex flex-col gap-4 min-w-[400px]">
-        <h2 className="text-xl font-medium text-slate-800">Manual Generation Playground</h2>
-        <p className="text-slate-500 text-sm">
-          Test the LLM documentation generation by pasting code directly.
-        </p>
-
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Filename (optional)</label>
-            <input 
-              type="text" 
-              value={filename}
-              onChange={(e) => setFilename(e.target.value)}
-              placeholder="e.g. auth-service.ts"
-              className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Context (optional)</label>
-            <input 
-              type="text" 
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
-              placeholder="e.g. This handles JWT validation"
-              className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 flex flex-col min-h-[300px]">
-          <label className="block text-sm font-medium text-slate-700 mb-1">Source Code</label>
-          <textarea
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="Paste your source code here..."
-            className="flex-1 p-4 font-mono text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-            spellCheck={false}
-          />
-        </div>
-
+    <div className="flex gap-6 h-[calc(100vh-8rem)]">
+      {/* Input Section */}
+      <div className="w-1/2 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm text-red-500 font-medium">
-            {error && <p>{error}</p>}
+          <div>
+            <h2 className="text-3xl font-bold text-white tracking-tight">AI Playground</h2>
+            <p className="text-slate-400 mt-2 text-sm max-w-md">Test DocSync's AI by pasting isolated code snippets. Tune the context to see how the model responds.</p>
           </div>
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="flex items-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-md hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Generate Docs
-          </button>
+        </div>
+
+        {error && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl shadow-sm text-sm">
+            {error}
+          </motion.div>
+        )}
+
+        <div className="glass-panel border-white/5 rounded-2xl shadow-xl flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-white/10 bg-white/5 flex gap-4">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Filename (optional)</label>
+              <input
+                type="text"
+                value={filename}
+                onChange={(e) => setFilename(e.target.value)}
+                placeholder="e.g., utils.ts"
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-slate-600 shadow-inner"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Additional Context</label>
+              <input
+                type="text"
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                placeholder="e.g., This is a React hook"
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-slate-600 shadow-inner"
+              />
+            </div>
+          </div>
+          
+          <div className="flex-1 relative bg-black/40">
+            <textarea
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Paste your code here..."
+              className="absolute inset-0 w-full h-full bg-transparent border-0 resize-none p-6 text-sm text-indigo-100 font-mono focus:ring-0 custom-scrollbar placeholder:text-slate-700"
+            />
+          </div>
+
+          <div className="p-4 border-t border-white/10 bg-white/5">
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating || !code.trim()}
+              className="w-full bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2"
+            >
+              {isGenerating ? (
+                <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing Snippet...</>
+              ) : (
+                <><Send className="w-5 h-5" /> Generate Documentation</>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Preview Section */}
-      <div className="flex-1 flex flex-col min-w-[400px] border-l border-slate-200 pl-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-medium text-slate-800">Generated Documentation</h2>
-          {generatedDoc && (
-            <button 
-              onClick={copyToClipboard}
-              className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition-colors"
-            >
-              {copied ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy raw'}
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1 bg-white border border-slate-200 rounded-md overflow-hidden flex flex-col">
-          {!generatedDoc && !isGenerating && (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-              <FileCode2 className="w-12 h-12 mb-4 opacity-50" />
-              <p>Generated documentation will appear here</p>
+      {/* Output Section */}
+      <div className="w-1/2 flex flex-col">
+        {!generatedDoc ? (
+          <div className="flex-1 glass-panel rounded-2xl flex flex-col items-center justify-center p-12 text-slate-400 border-white/5 shadow-xl">
+            <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-8 shadow-inner border border-white/5">
+              <FileCode2 className="w-12 h-12 text-indigo-500/50" />
             </div>
-          )}
-
-          {isGenerating && (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-              <Loader2 className="w-10 h-10 mb-4 animate-spin opacity-50 text-blue-500" />
-              <p>Analyzing code and generating docs...</p>
+            <h3 className="text-xl font-medium text-slate-300 mb-2">Awaiting Code</h3>
+            <p className="text-center text-sm max-w-sm">
+              Paste your code on the left and click Generate to see DocSync AI in action.
+            </p>
+          </div>
+        ) : (
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex-1 glass-panel rounded-2xl shadow-xl flex flex-col overflow-hidden border-white/5">
+            <div className="px-6 py-4 border-b border-white/10 bg-white/5 flex items-center justify-between">
+              <h3 className="font-semibold text-slate-200">Generated Output</h3>
+              <button
+                onClick={copyToClipboard}
+                className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10 transition-all shadow-sm"
+              >
+                {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copied ? <span className="text-emerald-400">Copied!</span> : 'Copy Markdown'}
+              </button>
             </div>
-          )}
-
-          {generatedDoc && !isGenerating && (
-            <div className="flex-1 overflow-auto p-8 prose prose-slate max-w-none">
+            
+            <div className="flex-1 overflow-auto p-8 bg-black/20 custom-scrollbar prose prose-invert prose-slate prose-a:text-indigo-400 max-w-none">
               <ReactMarkdown>{generatedDoc.content}</ReactMarkdown>
             </div>
-          )}
-        </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
