@@ -184,7 +184,7 @@ For continuous operation without `ngrok` or a local machine, deploy DocSync to a
 2.  **Create a new Web Service** on Render.
 3.  **Select your DocSync repository**.
 4.  Configure the build settings:
-    -   **Root Directory**: `DocSync_AI-powered_Technical_Documentation_Generator` (if your code is in a sub-folder).
+    -   **Root Directory**: `DocSync_AI-powered_Technical_Documentation_Generator` (if your code is in a sub-folder, otherwise leave blank or adjust).
     -   **Runtime**: `Node`.
     -   **Build Command**: `npm install && npm run build`.
     -   **Start Command**: `node dist/server.cjs`.
