@@ -162,6 +162,25 @@ To enable the autonomous PR documentation feature:
 
 3. **Test it** — Create a branch, push a change, and open a Pull Request. DocSync will automatically post an analysis comment.
 
+### Deploying Live (Recommended)
+
+To run DocSync 24/7 without needing your laptop or `ngrok`, you can deploy it to a free cloud host like **Render.com**.
+
+1. Create an account on [Render](https://render.com/) and connect your GitHub.
+2. Click **New +** -> **Web Service**.
+3. Select your DocSync repository.
+4. Configure the build:
+   - **Root Directory:** `DocSync_AI-powered_Technical_Documentation_Generator` *(if the code is in this sub-folder)*
+   - **Runtime:** `Node`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm run start`
+5. Scroll down to **Environment Variables** and add your secrets:
+   - `GEMINI_API_KEY` = your API key
+   - `GITHUB_TOKEN` = your GitHub token
+   - `WEBHOOK_SECRET` = your custom secret password
+6. Click **Create Web Service**.
+7. Once deployed, take your new live URL (e.g., `https://docsync-agent.onrender.com`) and update your GitHub Webhook Payload URL!
+
 ### Using the Dashboard
 
 | Tab | What it does |
