@@ -91,13 +91,18 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 ml-64 flex flex-col h-screen">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
-          <h1 className="text-lg font-medium text-slate-800 capitalize">
-            {currentView === 'settings' ? 'Setup & Integration' 
-              : currentView === 'webhook' ? 'Webhook Activity'
-              : currentView === 'history' ? 'Documentation History'
-              : currentView.replace('-', ' ')}
-          </h1>
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0 justify-between">
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-medium text-slate-800 capitalize">
+              {currentView === 'settings' ? 'Setup & Integration' 
+                : currentView === 'webhook' ? 'Webhook Activity'
+                : currentView === 'history' ? 'Documentation History'
+                : currentView.replace('-', ' ')}
+            </h1>
+            <span className="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full border border-blue-100">
+              v1.1 Autonomous
+            </span>
+          </div>
         </header>
 
         <main className="flex-1 p-8 overflow-y-auto">
