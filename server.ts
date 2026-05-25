@@ -582,6 +582,235 @@ app.get('/api/github/webhook/health', (_req, res) => {
   });
 });
 
+// ========================================================================================
+// 🤖 AGENTIC AUTO-UPDATE SYSTEM — Autonomous Commit Tracking & Doc Regeneration
+// ========================================================================================
+
+interface AutoUpdateLogEntry {
+  id: string;
+  timestamp: string;
+  repoFullName: string;
+  type: 'check' | 'detected' | 'generating' | 'committed' | 'skipped' | 'error';
+  message: string;
+  sha?: string;
+  commitUrl?: string;
+}
+
+const autoUpdateLog: AutoUpdateLogEntry[] = [];
+const MAX_AUTO_LOG_SIZE = 200;
+
+function addAutoLog(entry: Omit<AutoUpdateLogEntry, 'id' | 'timestamp'>) {
+  autoUpdateLog.unshift({
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    ...entry
+  });
+  if (autoUpdateLog.length > MAX_AUTO_LOG_SIZE) autoUpdateLog.pop();
+}
+
+// Get latest commit SHA for a repo
+app.get('/api/github/repo-latest-sha', async (req, res) => {
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) return res.status(400).json({ error: 'GITHUB_TOKEN is not set' });
+
+    const repo = req.query.repo as string;
+    if (!repo) return res.status(400).json({ error: 'repo query parameter is required' });
+
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'DocSync-App'
+    };
+
+    // Get default branch
+    const repoRes = await fetch(`https://api.github.com/repos/${repo}`, { headers });
+    if (!repoRes.ok) throw new Error('Failed to fetch repo info');
+    const repoInfo = await repoRes.json();
+    const branch = repoInfo.default_branch;
+
+    // Get latest commit on default branch
+    const commitsRes = await fetch(`https://api.github.com/repos/${repo}/commits/${branch}`, { headers });
+    if (!commitsRes.ok) throw new Error('Failed to fetch latest commit');
+    const commitData = await commitsRes.json();
+
+    res.json({
+      sha: commitData.sha,
+      message: commitData.commit?.message || '',
+      author: commitData.commit?.author?.name || 'unknown',
+      date: commitData.commit?.author?.date || '',
+      branch
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Agentic auto-update: detect new commits, regenerate docs, and push
+app.post('/api/docs/auto-update', async (req, res) => {
+  const { repoFullName, lastKnownSha } = req.body;
+
+  if (!repoFullName) return res.status(400).json({ error: 'repoFullName is required' });
+
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) return res.status(400).json({ error: 'GITHUB_TOKEN is not set' });
+
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/vnd.github.v3+json',
+    'User-Agent': 'DocSync-App'
+  };
+
+  try {
+    // Step 1: Check latest commit
+    addAutoLog({ repoFullName, type: 'check', message: `Checking for new commits on ${repoFullName}...` });
+
+    const repoRes = await fetch(`https://api.github.com/repos/${repoFullName}`, { headers });
+    if (!repoRes.ok) throw new Error('Failed to fetch repo info');
+    const repoInfo = await repoRes.json();
+    const branch = repoInfo.default_branch;
+
+    const commitsRes = await fetch(`https://api.github.com/repos/${repoFullName}/commits/${branch}`, { headers });
+    if (!commitsRes.ok) throw new Error('Failed to fetch latest commit');
+    const commitData = await commitsRes.json();
+    const latestSha = commitData.sha;
+    const commitMessage = commitData.commit?.message || '';
+    const commitAuthor = commitData.commit?.author?.name || 'unknown';
+
+    // Step 2: Compare SHAs
+    if (lastKnownSha && latestSha === lastKnownSha) {
+      addAutoLog({ repoFullName, type: 'skipped', message: `No new commits detected. HEAD is still ${latestSha.substring(0, 7)}.`, sha: latestSha });
+      return res.json({ updated: false, sha: latestSha, message: 'No new commits' });
+    }
+
+    // New commit detected!
+    addAutoLog({
+      repoFullName,
+      type: 'detected',
+      message: `🚨 New commit detected! ${latestSha.substring(0, 7)} by ${commitAuthor}: "${commitMessage}"`,
+      sha: latestSha
+    });
+
+    console.log(`\n🚨 Auto-Update Agent: New commit ${latestSha.substring(0, 7)} on ${repoFullName}`);
+
+    // Step 3: Fetch repository files for analysis
+    addAutoLog({ repoFullName, type: 'generating', message: `Fetching repository files and generating documentation via Gemini AI...`, sha: latestSha });
+
+    const treeRes = await fetch(`https://api.github.com/repos/${repoFullName}/git/trees/${branch}?recursive=1`, { headers });
+    if (!treeRes.ok) throw new Error('Failed to fetch repo tree');
+    const treeData = await treeRes.json();
+
+    const filePaths = treeData.tree
+      .filter((file: any) => file.type === 'blob')
+      .map((file: any) => file.path)
+      .filter((p: string) => !p.match(/(node_modules|dist|build|\.(jpg|png|gif|svg|ico|pdf|zip|mp4)|package-lock\.json|yarn\.lock|DOCSYNC\.md)/i))
+      .filter((p: string) => !p.includes('/.'))
+      .slice(0, 15);
+
+    let allContents = '';
+    for (const filePath of filePaths) {
+      const fileRes = await fetch(`https://raw.githubusercontent.com/${repoFullName}/${branch}/${filePath}`, { headers });
+      if (fileRes.ok) {
+        const content = await fileRes.text();
+        allContents += `\n\n--- File: ${filePath} ---\n\`\`\`\n${content}\n\`\`\`\n`;
+      }
+    }
+
+    if (!allContents) {
+      addAutoLog({ repoFullName, type: 'error', message: 'No analyzable code files found in repository.', sha: latestSha });
+      return res.status(400).json({ error: 'No suitable code files found' });
+    }
+
+    // Step 4: Generate documentation with Gemini
+    const ai = getGenAI();
+    const prompt = `You are an expert technical documentation generator named DocSync.
+Your task is to analyze the following repository files and generate a comprehensive \`README.md\` style documentation for the entire project.
+
+Repository: ${repoFullName}
+Latest Commit: ${latestSha.substring(0, 7)} — "${commitMessage}" by ${commitAuthor}
+
+Guidelines:
+1. Provide a project overview.
+2. Document the structure and main components/features based on the files.
+3. Suggest usage or setup instructions if apparent.
+4. Keep the documentation professional, structured, and easy to read.
+5. Use markdown formatting exclusively.
+6. Do not wrap the response with \`\`\`markdown, just return raw markdown.
+
+Source Files Analyzed:
+${allContents}
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    const generatedDoc = response.text;
+    if (!generatedDoc) {
+      addAutoLog({ repoFullName, type: 'error', message: 'Gemini returned an empty response.', sha: latestSha });
+      throw new Error('Gemini returned an empty response');
+    }
+
+    // Step 5: Commit the updated documentation
+    addAutoLog({ repoFullName, type: 'generating', message: `Documentation generated (${generatedDoc.length} chars). Committing to GitHub...`, sha: latestSha });
+
+    // Get existing file SHA if it exists
+    let fileSha = undefined;
+    const getFileRes = await fetch(`https://api.github.com/repos/${repoFullName}/contents/DOCSYNC.md`, { headers });
+    if (getFileRes.ok) {
+      const fileJson = await getFileRes.json();
+      fileSha = fileJson.sha;
+    }
+
+    const b64Content = Buffer.from(generatedDoc).toString('base64');
+    const putRes = await fetch(`https://api.github.com/repos/${repoFullName}/contents/DOCSYNC.md`, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `Auto-updated technical documentation for commit ${latestSha.substring(0, 7)}`,
+        content: b64Content,
+        sha: fileSha
+      })
+    });
+
+    if (!putRes.ok) {
+      const errText = await putRes.text();
+      addAutoLog({ repoFullName, type: 'error', message: `Failed to commit documentation: ${putRes.status}`, sha: latestSha });
+      throw new Error('Failed to commit: ' + errText);
+    }
+
+    const putData = await putRes.json();
+    const commitUrl = putData.content?.html_url || '';
+
+    addAutoLog({
+      repoFullName,
+      type: 'committed',
+      message: `✅ Documentation auto-updated and committed successfully!`,
+      sha: latestSha,
+      commitUrl
+    });
+
+    console.log(`✅ Auto-Update Agent: Committed updated DOCSYNC.md for ${repoFullName}`);
+
+    res.json({ updated: true, sha: latestSha, commitUrl, message: 'Documentation auto-updated' });
+  } catch (err: any) {
+    addAutoLog({ repoFullName, type: 'error', message: `❌ Error: ${err.message}`, sha: '' });
+    console.error(`❌ Auto-Update Agent error for ${repoFullName}:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get auto-update activity log
+app.get('/api/auto-update/log', (req, res) => {
+  const repo = req.query.repo as string;
+  if (repo) {
+    res.json(autoUpdateLog.filter(e => e.repoFullName === repo));
+  } else {
+    res.json(autoUpdateLog);
+  }
+});
+
 // Vite middleware for development
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

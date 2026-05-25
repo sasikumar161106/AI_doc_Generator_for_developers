@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Github, Code2, RefreshCw, Activity, ExternalLink, Send, ArrowRight, Loader2, CheckCircle2, Book } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Github, Code2, RefreshCw, Activity, ExternalLink, Send, ArrowRight, Loader2, CheckCircle2, Book, Zap, Clock, AlertCircle, Eye, GitCommit, Power } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -13,6 +13,14 @@ export default function Dashboard() {
   const [generatedDoc, setGeneratedDoc] = useState<string | null>(null);
   const [pushing, setPushing] = useState(false);
   const [pushSuccessUrl, setPushSuccessUrl] = useState<string | null>(null);
+
+  // Auto-Update Agent State
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(false);
+  const [lastKnownSha, setLastKnownSha] = useState<string | null>(null);
+  const [autoUpdateLog, setAutoUpdateLog] = useState<any[]>([]);
+  const [isAutoUpdating, setIsAutoUpdating] = useState(false);
+  const autoUpdateInterval = useRef<NodeJS.Timeout | null>(null);
+  const logPollInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchRepos();
@@ -91,6 +99,76 @@ export default function Dashboard() {
     }
   };
 
+  // Auto-Update: fetch initial SHA when repo selected
+  const fetchInitialSha = useCallback(async (repoFullName: string) => {
+    try {
+      const res = await fetch(`/api/github/repo-latest-sha?repo=${encodeURIComponent(repoFullName)}`);
+      const data = await res.json();
+      if (res.ok) setLastKnownSha(data.sha);
+    } catch (err) {
+      console.error('Failed to fetch initial SHA:', err);
+    }
+  }, []);
+
+  // Auto-Update: poll for new commits
+  const checkForUpdates = useCallback(async () => {
+    if (!selectedRepo || isAutoUpdating) return;
+    setIsAutoUpdating(true);
+    try {
+      const res = await fetch('/api/docs/auto-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoFullName: selectedRepo.full_name, lastKnownSha }),
+      });
+      const data = await res.json();
+      if (data.sha) setLastKnownSha(data.sha);
+    } catch (err) {
+      console.error('Auto-update check failed:', err);
+    } finally {
+      setIsAutoUpdating(false);
+    }
+  }, [selectedRepo, lastKnownSha, isAutoUpdating]);
+
+  // Auto-Update: fetch activity log
+  const fetchAutoLog = useCallback(async () => {
+    if (!selectedRepo) return;
+    try {
+      const res = await fetch(`/api/auto-update/log?repo=${encodeURIComponent(selectedRepo.full_name)}`);
+      const data = await res.json();
+      setAutoUpdateLog(data);
+    } catch (err) {
+      console.error('Failed to fetch auto-update log:', err);
+    }
+  }, [selectedRepo]);
+
+  // Start/stop polling when autoUpdateEnabled changes
+  useEffect(() => {
+    if (autoUpdateEnabled && selectedRepo) {
+      fetchInitialSha(selectedRepo.full_name);
+      // Poll for updates every 30 seconds
+      autoUpdateInterval.current = setInterval(checkForUpdates, 30000);
+      // Poll for log updates every 5 seconds
+      logPollInterval.current = setInterval(fetchAutoLog, 5000);
+      // Trigger an immediate check
+      checkForUpdates();
+      fetchAutoLog();
+    } else {
+      if (autoUpdateInterval.current) clearInterval(autoUpdateInterval.current);
+      if (logPollInterval.current) clearInterval(logPollInterval.current);
+    }
+    return () => {
+      if (autoUpdateInterval.current) clearInterval(autoUpdateInterval.current);
+      if (logPollInterval.current) clearInterval(logPollInterval.current);
+    };
+  }, [autoUpdateEnabled, selectedRepo]);
+
+  // Reset auto-update when repo changes
+  useEffect(() => {
+    setAutoUpdateEnabled(false);
+    setAutoUpdateLog([]);
+    setLastKnownSha(null);
+  }, [selectedRepo?.id]);
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -137,12 +215,13 @@ export default function Dashboard() {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.02, x: 4 }}
                     key={repo.id}
                     onClick={() => handleSelectRepo(repo)}
-                    className={`w-full text-left p-4 rounded-xl transition-all duration-200 border ${
+                    className={`w-full text-left p-4 rounded-xl transition-all duration-300 border ${
                       selectedRepo?.id === repo.id
-                        ? 'bg-indigo-500/15 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
-                        : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10'
+                        ? 'bg-purple-500/20 border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.2)]'
+                        : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/20 hover:shadow-lg'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -225,13 +304,15 @@ export default function Dashboard() {
                         <p className="text-sm text-slate-400 mb-8 leading-relaxed">
                           Click below to initiate the AI analysis. The model will create a complete `DOCSYNC.md` file tailored to this project.
                         </p>
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={handleGenerate}
-                          className="w-full bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] px-6 py-3.5 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
+                          className="w-full bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 text-white shadow-[0_0_30px_rgba(217,70,239,0.5)] px-6 py-3.5 rounded-xl font-medium flex items-center justify-center gap-2"
                         >
                           <Send className="w-5 h-5" />
                           Analyze & Generate Docs
-                        </button>
+                        </motion.button>
                       </div>
                     )}
                   </div>
@@ -272,6 +353,109 @@ export default function Dashboard() {
                   </motion.div>
                 )}
               </div>
+
+              {/* Auto-Update Agent Panel */}
+              {generatedDoc && (
+                <div className="p-6 border-t border-white/10 bg-gradient-to-r from-purple-500/5 to-indigo-500/5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                        autoUpdateEnabled
+                          ? 'bg-emerald-500/20 border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.3)]'
+                          : 'bg-white/5 border-white/10'
+                      }`}>
+                        <Zap className={`w-5 h-5 ${autoUpdateEnabled ? 'text-emerald-400' : 'text-slate-500'}`} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-white text-sm flex items-center gap-2">
+                          Auto-Update Agent
+                          {autoUpdateEnabled && (
+                            <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+                              Active
+                            </span>
+                          )}
+                        </h4>
+                        <p className="text-xs text-slate-400">Polls every 30s for new commits and auto-regenerates docs</p>
+                      </div>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setAutoUpdateEnabled(!autoUpdateEnabled)}
+                      className={`px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all duration-300 border ${
+                        autoUpdateEnabled
+                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20'
+                          : 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-transparent shadow-[0_0_20px_rgba(168,85,247,0.3)]'
+                      }`}
+                    >
+                      <Power className="w-4 h-4" />
+                      {autoUpdateEnabled ? 'Stop Agent' : 'Start Agent'}
+                    </motion.button>
+                  </div>
+
+                  {/* Activity Log */}
+                  {(autoUpdateEnabled || autoUpdateLog.length > 0) && (
+                    <div className="bg-black/40 rounded-xl border border-white/5 overflow-hidden shadow-inner">
+                      <div className="px-4 py-3 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                          <Activity className="w-3.5 h-3.5 text-purple-400" />
+                          Agent Activity Log
+                        </span>
+                        <span className="text-xs text-slate-500">{autoUpdateLog.length} events</span>
+                      </div>
+                      <div className="max-h-[200px] overflow-y-auto">
+                        {autoUpdateLog.length === 0 ? (
+                          <div className="p-6 text-center text-sm text-slate-500 flex flex-col items-center gap-2">
+                            <Eye className="w-5 h-5" />
+                            Waiting for agent activity...
+                          </div>
+                        ) : (
+                          <AnimatePresence>
+                            {autoUpdateLog.map((entry: any, i: number) => (
+                              <motion.div
+                                key={entry.id}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.02 }}
+                                className="px-4 py-2.5 flex items-start gap-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors text-xs"
+                              >
+                                <span className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                                  entry.type === 'committed' ? 'bg-emerald-500/20 text-emerald-400' :
+                                  entry.type === 'detected' ? 'bg-amber-500/20 text-amber-400' :
+                                  entry.type === 'generating' ? 'bg-purple-500/20 text-purple-400' :
+                                  entry.type === 'error' ? 'bg-rose-500/20 text-rose-400' :
+                                  entry.type === 'skipped' ? 'bg-slate-500/20 text-slate-400' :
+                                  'bg-indigo-500/20 text-indigo-400'
+                                }`}>
+                                  {entry.type === 'committed' ? <CheckCircle2 className="w-3 h-3" /> :
+                                   entry.type === 'detected' ? <Zap className="w-3 h-3" /> :
+                                   entry.type === 'generating' ? <Loader2 className="w-3 h-3 animate-spin" /> :
+                                   entry.type === 'error' ? <AlertCircle className="w-3 h-3" /> :
+                                   entry.type === 'skipped' ? <Clock className="w-3 h-3" /> :
+                                   <GitCommit className="w-3 h-3" />}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-slate-200 truncate">{entry.message}</p>
+                                  <div className="flex items-center gap-2 mt-0.5 text-slate-500">
+                                    <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                                    {entry.sha && <span className="font-mono text-indigo-400/60">#{entry.sha.substring(0, 7)}</span>}
+                                    {entry.commitUrl && (
+                                      <a href={entry.commitUrl} target="_blank" rel="noreferrer" className="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5">
+                                        View <ExternalLink className="w-2.5 h-2.5" />
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
           )}
         </div>

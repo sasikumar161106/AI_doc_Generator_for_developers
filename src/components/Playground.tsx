@@ -108,17 +108,19 @@ export default function Playground() {
           </div>
 
           <div className="p-4 border-t border-white/10 bg-white/5">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleGenerate}
               disabled={isGenerating || !code.trim()}
-              className="w-full bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] flex items-center justify-center gap-2"
             >
               {isGenerating ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing Snippet...</>
               ) : (
                 <><Send className="w-5 h-5" /> Generate Documentation</>
               )}
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>

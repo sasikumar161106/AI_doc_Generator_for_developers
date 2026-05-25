@@ -43,7 +43,18 @@ Generate comprehensive overviews for entire repositories.
 - **README Compilation** — Generates a project-wide `DOCSYNC.md` documenting structure, components, and setup.
 - **One-Click Commit** — Push the generated file directly back to GitHub.
 
-### 5. 🧪 Code Snippet Playground
+### 5. 🤖 Agentic Auto-Update System
+
+The core agentic feature — DocSync **actively monitors** your repositories and autonomously keeps documentation up to date.
+
+- **Autonomous Commit Tracking** — Polls GitHub every 30 seconds for new commits on the selected repository.
+- **Change Detection** — Compares the latest commit SHA with the last known SHA to detect code changes.
+- **Auto-Regeneration** — When a new commit is detected, it fetches all repo files, sends them to Gemini for analysis, and generates updated documentation.
+- **Auto-Commit** — Pushes the regenerated `DOCSYNC.md` directly back to the repository without any human intervention.
+- **Live Activity Log** — Every agent action (check, detect, generate, commit, skip, error) is logged in real-time with timestamps, SHA references, and clickable GitHub links.
+- **Start/Stop Control** — Toggle the agent on or off from the Dashboard UI with a single click.
+
+### 6. 🧪 Code Snippet Playground
 
 A flexible testing ground for on-the-fly documentation.
 
@@ -51,7 +62,7 @@ A flexible testing ground for on-the-fly documentation.
 - **Contextual Formatting** — Provide optional filename and context strings for tailored output.
 - **One-Click Copy** — Copy the raw Markdown to your clipboard.
 
-### 6. 🔒 Security & Reliability
+### 7. 🔒 Security & Reliability
 
 Production-grade protections built into the webhook pipeline.
 
@@ -59,7 +70,7 @@ Production-grade protections built into the webhook pipeline.
 - **Rate Limiting** — 30 requests per minute per IP to prevent abuse.
 - **Graceful Error Handling** — All failures are logged with context and duration for easy debugging.
 
-### 7. 🎨 Premium Modern UI (Glassmorphism)
+### 8. 🎨 Premium Modern UI (Glassmorphism)
 
 A fully overhauled, state-of-the-art interface built for developers.
 
@@ -100,14 +111,17 @@ DocSync_AI-powered_Technical_Documentation_Generator/
 |----------|--------|-------------|
 | `/api/docs/generate` | POST | Generate docs for a code snippet |
 | `/api/docs/generate-repo` | POST | Generate project-level documentation |
+| `/api/docs/auto-update` | POST | **Agentic auto-update**: detect new commits, regenerate docs, and push |
 | `/api/github/user` | GET | Fetch authenticated GitHub user info |
 | `/api/github/repos` | GET | List user's GitHub repositories |
 | `/api/github/commit` | POST | Commit generated docs to a repository |
+| `/api/github/repo-latest-sha` | GET | Fetch latest commit SHA for a repo |
 | `/api/github/webhook` | POST | **GitHub webhook receiver** (autonomous trigger) |
 | `/api/github/webhook/health` | GET | Webhook health check & config status |
 | `/api/webhook/activity` | GET | Get webhook event activity log |
 | `/api/webhook/history` | GET | Get documentation generation history |
 | `/api/webhook/stats` | GET | Get aggregated webhook statistics |
+| `/api/auto-update/log` | GET | Get agentic auto-update activity log |
 
 ---
 
@@ -194,7 +208,7 @@ To run DocSync 24/7 without needing your laptop or `ngrok`, you can deploy it to
 
 | Tab | What it does |
 |-----|-------------|
-| **Dashboard** | Select a repo → Analyze → Generate docs → Commit `DOCSYNC.md` back |
+| **Dashboard** | Select a repo → Analyze → Generate docs → Commit `DOCSYNC.md` → **Start Auto-Update Agent** |
 | **Test Playground** | Paste code → Get instant Markdown docs → Copy to clipboard |
 | **Webhook Activity** | Live monitoring of all webhook events with stats |
 | **Doc History** | Browse and review all past AI-generated documentation |

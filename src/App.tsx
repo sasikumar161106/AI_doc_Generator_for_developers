@@ -24,7 +24,14 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen flex font-sans text-slate-200">
+    <div className="min-h-screen flex font-sans text-slate-200 relative overflow-hidden bg-[#09090b]">
+      {/* Animated Background Blobs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob" />
+        <div className="absolute top-[20%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-2000" />
+        <div className="absolute bottom-[-20%] left-[20%] w-[60%] h-[60%] bg-pink-600/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-4000" />
+      </div>
+
       {/* Glass Sidebar */}
       <div className="w-64 glass-sidebar flex flex-col fixed inset-y-0 z-20">
         <div className="h-16 flex items-center px-6 border-b border-white/5">
@@ -143,18 +150,20 @@ function NavItem({
   onClick: () => void;
 }) {
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.02, x: 4 }}
+      whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
         isActive 
-          ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-inner' 
+          ? 'bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-200 border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.2)]' 
           : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
       }`}
     >
       {React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
-        className: `w-5 h-5 transition-colors ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`
+        className: `w-5 h-5 transition-colors ${isActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`
       })}
       {label}
-    </button>
+    </motion.button>
   );
 }
